@@ -71,6 +71,47 @@ module VCAP::CloudController
           expect(event.metadata).to eq({ 'request' => { 'recursive' => true } })
         end
       end
+
+      describe 'role events' do
+        let(:assigner) { User.make }
+        let(:assignee) { User.make }
+        let(:assigner_email) { 'foo@bar.com' }
+        let(:roles) { [:manager, :developer, :auditor] }
+
+        describe '#record_space_role_add' do
+          it 'records the event correctly' do
+            roles.each do |role|
+              event = space_event_repository.record_space_role_add(space, assignee, role, assigner, assigner_email)
+              event.reload
+              expect(event.space).to eq(space)
+              expect(event.type).to eq("audit.space.#{role}.add")
+              expect(event.actee).to eq(assignee.guid)
+              expect(event.actee_type).to eq('user')
+              expect(event.actee_name).to eq('')
+              expect(event.actor).to eq(assigner.guid)
+              expect(event.actor_type).to eq('user')
+              expect(event.actor_name).to eq(assigner_email)
+            end
+          end
+        end
+
+        describe '#record_space_role_remove' do
+          it 'records the event correctly' do
+            roles.each do |role|
+              event = space_event_repository.record_space_role_remove(space, assignee, role, assigner, assigner_email)
+              event.reload
+              expect(event.space).to eq(space)
+              expect(event.type).to eq("audit.space.#{role}.remove")
+              expect(event.actee).to eq(assignee.guid)
+              expect(event.actee_type).to eq('user')
+              expect(event.actee_name).to eq('')
+              expect(event.actor).to eq(assigner.guid)
+              expect(event.actor_type).to eq('user')
+              expect(event.actor_name).to eq(assigner_email)
+            end
+          end
+        end
+      end
     end
   end
 end

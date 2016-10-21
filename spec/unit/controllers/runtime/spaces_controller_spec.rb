@@ -601,12 +601,12 @@ module VCAP::CloudController
     end
 
     describe 'audit events' do
-      let(:organization) { Organization.make }
+      let(:space) { Space.make }
 
       before { set_current_user_as_admin }
 
       it 'logs audit.space.create when creating a space' do
-        request_body = { organization_guid: organization.guid, name: 'space_name' }.to_json
+        request_body = { organization_guid: space.organization.guid, name: 'space_name' }.to_json
         post '/v2/spaces', request_body
 
         expect(last_response).to have_status_code(201)
@@ -614,38 +614,49 @@ module VCAP::CloudController
         new_space_guid = decoded_response['metadata']['guid']
         event = Event.find(type: 'audit.space.create', actee: new_space_guid)
         expect(event).not_to be_nil
+
         expect(event.actor_name).to eq(SecurityContext.current_user_email)
-        expect(event.metadata['request']).to include('organization_guid' => organization.guid, 'name' => 'space_name')
+        expect(event.metadata['request']).to include('organization_guid' => space.organization.guid, 'name' => 'space_name')
       end
 
       it 'logs audit.space.update when updating a space' do
-        space = Space.make
         request_body = { name: 'new_space_name' }.to_json
         put "/v2/spaces/#{space.guid}", request_body
 
         expect(last_response).to have_status_code(201)
 
         space_guid = decoded_response['metadata']['guid']
-        event = Event.find(type: 'audit.space.update', actee: space_guid)
+        event = Event.find(type: 'audit.space.update', actee: space.guid)
         expect(event).not_to be_nil
         expect(event.actor_name).to eq(SecurityContext.current_user_email)
         expect(event.metadata['request']).to eq('name' => 'new_space_name')
       end
 
       it 'logs audit.space.delete-request when deleting a space' do
-        space = Space.make
-        organization_guid = space.organization.guid
-        space_guid = space.guid
         delete "/v2/spaces/#{space_guid}?recursive=true"
 
         expect(last_response).to have_status_code(204)
 
-        event = Event.find(type: 'audit.space.delete-request', actee: space_guid)
+        event = Event.find(type: 'audit.space.delete-request', actee: space.guid)
         expect(event).not_to be_nil
         expect(event.metadata['request']).to eq('recursive' => true)
-        expect(event.space_guid).to eq(space_guid)
+        expect(event.space_guid).to eq(space.guid)
         expect(event.actor_name).to eq(SecurityContext.current_user_email)
-        expect(event.organization_guid).to eq(organization_guid)
+        expect(event.organization_guid).to eq(space.organization.guid)
+      end
+
+      it 'logs audit.space.role.add when a role is associated to a space' do
+        user = User.make
+        space.organization.add_user(user)
+        put "/v2/spaces/#{space.guid}/auditors/#{user.guid}"
+
+        expect(last_response).to have_status_code(201)
+
+        event = Event.find(type: 'audit.space.auditor.add', actee: user.guid)
+        expect(event).not_to be_nil
+        expect(event.space_guid).to eq(space.guid)
+        expect(event.actor_name).to eq(SecurityContext.current_user_email)
+        expect(event.organization_guid).to eq(space.organization.guid)
       end
     end
 

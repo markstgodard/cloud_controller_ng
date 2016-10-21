@@ -52,6 +52,30 @@ module VCAP::CloudController
           }
         )
       end
+
+      def record_space_role_add(space, assignee, role, actor, actor_name)
+        record_role_event("audit.space.#{role}.add", space, assignee, actor, actor_name)
+      end
+
+      def record_space_role_remove(space, assignee, role, actor, actor_name)
+        record_role_event("audit.space.#{role}.remove", space, assignee, actor, actor_name)
+      end
+
+      private
+
+      def record_role_event(type, space, assignee, actor, actor_name)
+        Event.create(
+          type:       type,
+          space:      space,
+          actee:      assignee.guid,
+          actee_type: 'user',
+          actee_name: '',
+          actor:      actor.guid,
+          actor_type: 'user',
+          actor_name: actor_name,
+          timestamp:  Sequel::CURRENT_TIMESTAMP,
+        )
+      end
     end
   end
 end
