@@ -15,8 +15,8 @@ module VCAP::CloudController
        primary_key: :guid,
        key: :isolation_segment_guid
 
-    define_user_group :developers, reciprocal: :spaces, before_add: :validate_developer, after_add: :create_developers_add_event
-    define_user_group :managers, reciprocal: :managed_spaces, before_add: :validate_manager, after_add: :create_managers_add_event
+    define_user_group :developers, reciprocal: :spaces, before_add: :validate_developer, after_add: :create_developer_add_event
+    define_user_group :managers, reciprocal: :managed_spaces, before_add: :validate_manager, after_add: :create_manager_add_event
     define_user_group :auditors, reciprocal: :audited_spaces, before_add: :validate_auditor, after_add: :create_auditor_add_event
 
     many_to_one :organization, before_set: :validate_change_organization
@@ -211,19 +211,20 @@ module VCAP::CloudController
     end
 
     def create_auditor_add_event(user)
-      space_event_repository.record_space_role_add(self, user, 'auditor', SecurityContext.current_user, SecurityContext.current_user_email, {})
+      space_event_repository.record_space_role_add(self, user, 'auditor', SecurityContext.current_user, SecurityContext.current_user_email)
     end
 
     def create_developer_add_event(user)
-      space_event_repository.record_space_role_add(self, user, 'developer', SecurityContext.current_user, SecurityContext.current_user_email, {})
+      space_event_repository.record_space_role_add(self, user, 'developer', SecurityContext.current_user, SecurityContext.current_user_email)
     end
 
     def create_manager_add_event(user)
-      space_event_repository.record_space_role_add(self, user, 'manager', SecurityContext.current_user, SecurityContext.current_user_email, {})
+      space_event_repository.record_space_role_add(self, user, 'manager', SecurityContext.current_user, SecurityContext.current_user_email)
     end
 
     def space_event_repository
       @repository ||= Repositories::SpaceEventRepository.new
     end
+
   end
 end

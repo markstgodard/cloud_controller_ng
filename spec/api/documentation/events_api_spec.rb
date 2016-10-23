@@ -53,6 +53,8 @@ RSpec.resource 'Events', type: [:api, :legacy_api] do
     audit.app.package.upload
     audit.app.package.delete
     audit.app.package.download
+    audit.space.role.add
+    audit.space.role.remove
   ).sort.freeze
 
   EXPERIMENTAL_EVENT_TYPES = %w(
@@ -123,6 +125,7 @@ RSpec.resource 'Events', type: [:api, :legacy_api] do
 
     let(:test_app) { VCAP::CloudController::App.make }
     let(:test_v3app) { VCAP::CloudController::AppModel.make }
+    let(:test_assignee) { VCAP::CloudController::User.make }
     let(:test_user) { VCAP::CloudController::User.make }
     let(:test_user_email) { 'user@example.com' }
     let(:test_space) { VCAP::CloudController::Space.make }
@@ -399,6 +402,40 @@ RSpec.resource 'Events', type: [:api, :legacy_api] do
         actee_name: test_space.name,
         space_guid: test_space.guid,
         metadata:   { 'request' => { 'recursive' => true } }
+      }
+    end
+
+    example 'List Associate Role Space Events' do
+      space_event_repository.record_space_role_add(test_space, test_assignee, 'auditor', test_user, test_user_email)
+
+      client.get '/v2/events?q=type:audit.space.auditor.add', {}, headers
+      expect(status).to eq(200)
+      standard_entity_response parsed_response['resources'][0], :event, expected_values: {
+        actor_type: 'user',
+        actor:      test_user.guid,
+        actor_name: test_user_email,
+        actee_type: 'user',
+        actee:      test_assignee.guid,
+        actee_name: '',
+        space_guid: test_space.guid,
+        metadata:   {}
+      }
+    end
+
+    example 'List Remove Role Space Events' do
+      space_event_repository.record_space_role_remove(test_space, test_assignee, 'auditor', test_user, test_user_email)
+
+      client.get '/v2/events?q=type:audit.space.auditor.remove', {}, headers
+      expect(status).to eq(200)
+      standard_entity_response parsed_response['resources'][0], :event, expected_values: {
+        actor_type: 'user',
+        actor:      test_user.guid,
+        actor_name: test_user_email,
+        actee_type: 'user',
+        actee:      test_assignee.guid,
+        actee_name: '',
+        space_guid: test_space.guid,
+        metadata:   {}
       }
     end
 
